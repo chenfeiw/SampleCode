@@ -1,0 +1,69 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+</head>
+<body>
+    <div style="position:fixed;top: 0;left: 0;width: 100%; padding:20px; padding-bottom:1px; background-color:white">
+        <div><span style="margin-right:10px">User:</span><span id="user"></span></div>
+        <div><span style="margin-right:10px">Connection Status:</span><span id="status"></span></div>
+        <div style="margin-top:5px;padding-left:30px;">Messages:</div>
+    </div>
+    <div style="margin-top:80px; padding-left:30px;">
+        <ul id="messages"></ul>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.4.1/dist/jquery.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@3.0.0/dist/browser/signalr.js" integrity="sha256-lJuchxG+bVodaH5pV7mE8qGOBats/bht9BimN1QCJiM=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jwt-decode@2.2.0/build/jwt-decode.js" integrity="sha256-6VOD0RFEQr+/BZmZXi18dA8A7/eq+/SkTL9KDx8Sm7U=" crossorigin="anonymous"></script>
+    <script type="text/javascript">
+        $(function () {
+            var user = $("#user");
+            var status = $("#status");
+            var token = prompt("User Token");
+
+            if (!token) {
+                user.text("Please refresh page and input a user token");
+                return;
+            }
+
+            var decoded = jwt_decode(token);
+
+            user.text(decoded.upn);
+
+
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl("https://cxp-es-ppe.westus2.cloudapp.azure.com:8127/api/signalr/Community_Insider", { accessTokenFactory: async () => token })
+                .configureLogging(signalR.LogLevel.Information)
+                .build();
+
+            connection.onclose(function (error) {
+                console.log("Closed due to " + error);
+                status.text("Closed due to " + error);
+            });
+
+            var messageCallback = function (message) {
+                if (!message) return;
+                var encodedMsg = $('<div />').text(JSON.stringify(message)).html();
+                // Add the message to the page.
+                $('#messages').append('<li>' + encodedMsg + '</li>');
+                document.body.scrollTop = document.body.scrollHeight;
+            };
+
+            connection.on("test", messageCallback);
+
+            status.text("Connecting...");
+            connection.start().then(function () {
+                console.log("connected");
+                status.text("Connected");
+            }).catch(function (error) {
+                console.log("error:" + error);
+                status.text("Error:" + error);
+            });
+
+        });
+    </script>
+
+
+</body>
+</html>
